@@ -10,20 +10,16 @@ import io
 import base64
 from dotenv import load_dotenv
 
-# Загрузка переменных окружения
 load_dotenv()
 
-# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация Groq клиента
 groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
-# Системный промт для маркетингового ИИ
 SYSTEM_PROMPT = """Ты - экспертный ИИ-помощник по digital маркетингу. Твоя задача:
 
 1. Анализировать маркетинговые материалы, тексты, изображения и веб-сайты
@@ -37,7 +33,6 @@ SYSTEM_PROMPT = """Ты - экспертный ИИ-помощник по digita
 
 Отвечай на русском языке."""
 
-# История сообщений для каждого пользователя
 user_conversations = {}
 
 def get_user_history(user_id: int) -> list:
@@ -50,7 +45,7 @@ def add_to_history(user_id: int, role: str, content: str):
     """Добавить сообщение в историю"""
     history = get_user_history(user_id)
     history.append({"role": role, "content": content})
-    # Ограничиваем историю последними 10 сообщениями
+   
     if len(history) > 20:
         user_conversations[user_id] = history[-20:]
 
@@ -159,17 +154,17 @@ async def analyze_website(url: str) -> str:
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Извлекаем основную информацию
+        
         title = soup.find('title')
         title_text = title.string if title else "Заголовок не найден"
         
         meta_description = soup.find('meta', attrs={'name': 'description'})
         description_text = meta_description['content'] if meta_description and 'content' in meta_description.attrs else "Описание не найдено"
         
-        # Извлекаем текст (ограничиваем для анализа)
+       
         text_content = soup.get_text(separator=' ', strip=True)[:3000]
         
-        # Извлекаем заголовки
+        
         headings = [h.get_text(strip=True) for h in soup.find_all(['h1', 'h2', 'h3'])[:10]]
         
         analysis_data = f"""URL: {url}
@@ -192,26 +187,26 @@ Meta описание: {description_text}
 async def get_ai_response(user_id: int, user_message: str, context_info: str = "") -> str:
     """Получить ответ от ИИ"""
     try:
-        # Получаем историю
+        
         history = get_user_history(user_id)
         
-        # Формируем сообщения для API
+        
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         
-        # Добавляем историю
-        messages.extend(history[-10:])  # Последние 10 сообщений
         
-        # Добавляем текущее сообщение с контекстом
+        messages.extend(history[-10:])  
+        
+        
         current_message = user_message
         if context_info:
             current_message = f"{context_info}\n\nЗапрос пользователя: {user_message}"
         
         messages.append({"role": "user", "content": current_message})
         
-        # Запрос к Groq API
+        
         chat_completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile",  # Мощная бесплатная модель
+            model="llama-3.3-70b-versatile",  
             temperature=0.7,
             max_tokens=2000,
             top_p=0.9,
@@ -219,7 +214,7 @@ async def get_ai_response(user_id: int, user_message: str, context_info: str = "
         
         ai_response = chat_completion.choices[0].message.content
         
-        # Добавляем в историю
+        
         add_to_history(user_id, "user", user_message)
         add_to_history(user_id, "assistant", ai_response)
         
@@ -234,15 +229,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text
     
-    # Показываем, что бот печатает
+    
     await update.message.chat.send_action(action="typing")
     
-    # Проверяем, есть ли URL в сообщении
+    
     context_info = ""
     if "http://" in user_message or "https://" in user_message:
         await update.message.reply_text("🔍 Анализирую сайт...")
         
-        # Извлекаем URL
+        
         import re
         urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', user_message)
         
@@ -250,10 +245,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             website_data = await analyze_website(urls[0])
             context_info = f"Данные с сайта:\n{website_data}\n\n"
     
-    # Получаем ответ от ИИ
+    
     ai_response = await get_ai_response(user_id, user_message, context_info)
     
-    # Отправляем ответ (разбиваем на части, если слишком длинный)
+    
     if len(ai_response) > 4000:
         parts = [ai_response[i:i+4000] for i in range(0, len(ai_response), 4000)]
         for part in parts:
@@ -267,17 +262,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text("🖼 Анализирую изображение...")
     
-    # Получаем фото
+    
     photo = update.message.photo[-1]  # Берем самое большое разрешение
     file = await context.bot.get_file(photo.file_id)
     
-    # Скачиваем изображение
+    
     photo_bytes = await file.download_as_bytearray()
     
-    # Открываем изображение для анализа
+    
     image = Image.open(io.BytesIO(photo_bytes))
     
-    # Формируем запрос для анализа
+    
     caption = update.message.caption if update.message.caption else "Проанализируй это маркетинговое изображение"
     
     analysis_prompt = f"""Пользователь отправил изображение с запросом: {caption}
@@ -295,7 +290,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Дай конкретные советы для улучшения конверсии."""
     
-    # Получаем ответ от ИИ
+    
     ai_response = await get_ai_response(user_id, analysis_prompt)
     
     await update.message.reply_text(ai_response)
@@ -307,11 +302,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text("📄 Анализирую документ...")
     
-    # Получаем информацию о документе
+    
     file_name = document.file_name
     file_size = document.file_size
     
-    # Для базовой версии просто подтверждаем получение
+    
     caption = update.message.caption if update.message.caption else "Проанализируй этот документ с точки зрения маркетинга"
     
     analysis_prompt = f"""Пользователь отправил документ "{file_name}" с запросом: {caption}
