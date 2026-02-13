@@ -211,7 +211,7 @@ async def get_ai_response(user_id: int, user_message: str, context_info: str = "
         # Запрос к Groq API
         chat_completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.1-70b-versatile",  # Мощная бесплатная модель
+            model="llama-3.3-70b-versatile",  # Мощная бесплатная модель
             temperature=0.7,
             max_tokens=2000,
             top_p=0.9,
